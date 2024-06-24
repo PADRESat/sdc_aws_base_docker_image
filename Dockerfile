@@ -52,6 +52,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
 
 # Copy over config.yml in tmp dir
 COPY config.yml /tmp
+RUN chmod 777 /tmp/config.yml
 
 # Add environment variables to pick up swxsoc core config
 ENV SWXSOC_CONFIGDIR=/tmp
