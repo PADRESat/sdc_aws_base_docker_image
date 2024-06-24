@@ -51,8 +51,9 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Copy over config.yml in tmp dir
-COPY config.yml /tmp
-RUN chmod 777 /tmp/config.yml
+RUN mkdir /config
+COPY config.yml /config
+RUN chmod -R 777 /config
 
 # Add environment variables to pick up swxsoc core config
-ENV SWXSOC_CONFIGDIR=/tmp
+ENV SWXSOC_CONFIGDIR=/config
