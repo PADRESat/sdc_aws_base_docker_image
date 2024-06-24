@@ -37,7 +37,7 @@ This container is built and pushed to the public repo ECR automatically by AWS C
 - sphinx-automodapi (For documentation)
 - sphinx-changelog (For documentation)
 - ipython (For easier debugging)
-- hermes core (For instrument packages)
+- swxsoc (For instrument packages)
 - boto3 (For AWS SDK)
 - awslambdaric (For use with interfacing with AWS Lambda)
 - matplotlib
