@@ -50,10 +50,10 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# Copy over config.yml in tmp dir
-RUN mkdir /config
-COPY config.yml /config
-RUN chmod -R 777 /config
+# # Copy over config.yml in tmp dir
+# RUN mkdir /config
+# COPY config.yml /config
+# RUN chmod -R 777 /config
 
-# Add environment variables to pick up swxsoc core config
-ENV SWXSOC_CONFIGDIR=/config
+# # Add environment variables to pick up swxsoc core config
+# ENV SWXSOC_CONFIGDIR=/config
