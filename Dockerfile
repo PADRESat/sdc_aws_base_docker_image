@@ -8,15 +8,6 @@ RUN apt-get update && \
     apt-get -y install --no-install-recommends -y python3-pip pylint git wget unzip make && \
     ln -s /usr/bin/python3 /usr/bin/python
 
-# Download Pre-Built CDF Binaries - Version: cdf39_0-dist-cdf
-RUN wget https://sdc-aws-support.s3.amazonaws.com/cdf-binaries/cdf39_0-dist-cdf.zip
-
-# Unzip CDF Binaries and move to /usr/local/cdf
-RUN unzip cdf39_0-dist-cdf.zip && mv cdf /usr/local/
-
-# For CDF Binaries in path
-ENV PATH="${PATH}:/usr/local/cdf/bin"
-
 # For sphinx to build in the container
 ENV LC_ALL=C
 
