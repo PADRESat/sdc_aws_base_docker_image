@@ -23,5 +23,5 @@ scipy==1.10.1 # required by spacepy but best to explicitly install it
 ipykernel==6.29.0 # for jupyter notebook
 ccsdspy @ git+https://github.com/ddasilva/ccsdspy.git # for parsing ccsds binary files
 swxsoc @ git+https://github.com/swxsoc/swxsoc.git # for interfacing with the SWxSOC API
-padre_meddea @ git+https://github.com/dbarrous/padre_meddea.git # for interfacing with the PADRE Meddea API
+padre_meddea @ git+https://github.com/PADRESat/padre_meddea.git # for interfacing with the PADRE Meddea API
 padre_sharp @ git+https://github.com/dbarrous/padre_sharp.git # for interfacing with the PADRE Sharp API
