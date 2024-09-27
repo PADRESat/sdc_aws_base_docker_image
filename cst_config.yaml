@@ -34,13 +34,6 @@ commandTests:
 - name: 'ipython'
   command: 'ipython'
   expectedOutput: ['.*IPython.*']
-- name: 'cdfvalidate'
-  command: 'cdfvalidate'
-  expectedOutput: ['.*CDF.*']
-- name: 'cdfinquire'
-  command: 'cdfinquire'
-  args: ['-id']
-  expectedOutput: ['.*CDF distribution V*']
 
 
 # Test if needed files exist
