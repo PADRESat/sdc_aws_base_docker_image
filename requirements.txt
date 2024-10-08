@@ -15,7 +15,7 @@ sphinx-copybutton==0.5.2 # for documentation
 sphinx-changelog==1.3.0 # for changelog in documentation
 sphinx_rtd_theme==2.0.0 # for documentation
 ipython==8.12.2 # for easier debugging
-boto3==1.34.34 # for aws sdk
+boto3>=1.34.34 # for aws sdk
 awslambdaric==2.0.4 # for use with interfacing with aws lambda
 matplotlib>=3.7.2 # required by spacepy but best to explicitly install it
 scipy==1.10.1 # required by spacepy but best to explicitly install it
@@ -23,5 +23,3 @@ ipykernel==6.29.0 # for jupyter notebook
 roentgen @ git+https://github.com/ehsteve/roentgen.git
 specutils==1.15 # for fitting spectra
 swxsoc @ git+https://github.com/swxsoc/swxsoc.git@main # for interfacing with the SWxSOC API
-padre_meddea @ git+https://github.com/PADRESat/padre_meddea.git # for interfacing with the PADRE Meddea API
-padre_sharp @ git+https://github.com/PADRESat/padre_sharp.git # for interfacing with the PADRE Sharp API
