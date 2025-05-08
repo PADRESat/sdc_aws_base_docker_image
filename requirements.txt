@@ -24,3 +24,4 @@ ipykernel==6.29.0 # for jupyter notebook
 roentgen @ git+https://github.com/ehsteve/roentgen.git
 specutils==1.15 # for fitting spectra
 swxsoc @ git+https://github.com/swxsoc/swxsoc.git@main # for interfacing with the SWxSOC API
+solarnet_metadata @ git+https://github.com/IHDE-Alliance/solarnet_metadata.git@solarnet_metadata_package
