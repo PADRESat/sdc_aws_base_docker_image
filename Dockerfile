@@ -1,8 +1,7 @@
-# Image: Ubuntu 20.04 Stable, Official Image from Canonical
-FROM public.ecr.aws/lts/ubuntu:22.04_stable
+ARG PLATFORM=linux/amd64
+FROM --platform=$PLATFORM public.ecr.aws/lts/ubuntu:22.04_stable
 
-# Performs updates and installs git, unzip, python3.8, python3-pip, python3.8-dev and pylint packages
-# Line 13 is required by the spacepy Python package
+# Performs updates and installs git, unzip, python3.10, python3-pip, python3.10-dev and pylint packages
 RUN apt-get update && \
     apt-get -y upgrade && \
     apt-get -y install --no-install-recommends -y python3-pip pylint git wget unzip make && \
