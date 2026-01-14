@@ -1,28 +1,2 @@
-numpy>=1.18.0
-astropy>=5.3.3
-ccsdspy==1.4.*
-sunpy>=5.0.1 # not currently needed
-ndcube>=2.2.0 # Adding NDCube to support spectra and high-dimensional data in hermes_core data container
-flake8==7.0.0 # for code style
-black==24.1.1 # for code style
-pytest==7.4.0 # for testing
-pytest-astropy==0.10.0 # for testing helpers
-pytest-cov==4.1.0 # for testing coverage
-pre-commit==3.3.3 # for pre-commit checks
-setuptools_scm==6.3.2 # for version number
-sphinx==7.2.6 # for documentation
-sphinx-automodapi==0.16.0 # for documentation
-sphinx-copybutton==0.5.2 # for documentation
-sphinx-changelog==1.3.0 # for changelog in documentation
-sphinx_rtd_theme==2.0.0 # for documentation
-ipython==8.12.2 # for easier debugging
-boto3>=1.34.34 # for aws sdk
 awslambdaric==2.0.4 # for use with interfacing with aws lambda
-matplotlib>=3.7.2 # required by spacepy but best to explicitly install it
-scipy==1.10.1 # required by spacepy but best to explicitly install it
-ipykernel==6.29.0 # for jupyter notebook
-roentgen @ git+https://github.com/ehsteve/roentgen.git
-specutils==1.15 # for fitting spectra
 swxsoc @ git+https://github.com/swxsoc/swxsoc.git@main # for interfacing with the SWxSOC API
-solarnet_metadata @ git+https://github.com/IHDE-Alliance/solarnet_metadata.git@solarnet_metadata_package
-GitPython==3.1.44 # for git operations

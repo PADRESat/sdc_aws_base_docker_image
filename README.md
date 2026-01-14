@@ -19,32 +19,13 @@ This container is built and pushed to the public repo ECR automatically by AWS C
 - git
 - wget
 - unzip
-- python3.8
+- python3.10
 - python3-pip
 - pylint
 
 ## Included Python Packages
-- numpy 
-- astropy 
-- sunpy 
-- flake8 (For code style)
-- black (For code style)
-- pytest (For testing)
-- pytest-astropy(For testing)
-- pytest-cov (For testing)
-- pre-commit
-- sphinx (For documentation)
-- sphinx-automodapi (For documentation)
-- sphinx-changelog (For documentation)
-- ipython (For easier debugging)
 - swxsoc (For instrument packages)
-- boto3 (For AWS SDK)
 - awslambdaric (For use with interfacing with AWS Lambda)
-- matplotlib
-- scipy
-- spacepy (For CDF file support)
-- ipykernel (For Jupyter notebook)
-- ccsdspy (For parsing CCSDS binary files)
 
 ### **Tests:**
 Checks whether the container contains the specified OS and Python requirements using the Container Structure Test ([CST testing suite](https://github.com/GoogleContainerTools/container-structure-test)). 
@@ -56,7 +37,7 @@ To make a change to this container image, please `fork` this repo, make the requ
 If you experience any issues in your development environment (`.devcontainer` environment on VSCode) when pulling this image from ECR, ensure you have the latest build by rebuilding your container to pull from latest.
 
 ## Dockerfile Details
-This Docker image is built from the official Canonical Ubuntu 22.04 image. It updates the system and installs necessary packages such as git, unzip, python3.8, python3-pip, and pylint. 
+This Docker image is built from the official Canonical Ubuntu 22.04 image. It updates the system and installs necessary packages such as git, unzip, python3.10, python3-pip, and pylint. 
 
 This Dockerfile also includes a process to download pre-built CDF binaries for data format support and copies a Python requirements.txt file into the image to be used for installing Python dependencies. 
 
