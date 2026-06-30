@@ -41,9 +41,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Upgrade pip
 RUN  python3 -m pip install --upgrade pip
 
-# To fix spacepy dependency issue
-RUN  python3 -m pip install --upgrade --force-reinstall setuptools==59.5.0 setuptools_scm==6.3.2
-
 # Install Python dependencies defined in requirements
 RUN  python3 -m pip install -r requirements.txt
 
