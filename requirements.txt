@@ -1,2 +1,2 @@
-awslambdaric==2.0.4 # for use with interfacing with aws lambda
+awslambdaric==4.0.0 # for use with interfacing with aws lambda
 swxsoc @ git+https://github.com/swxsoc/swxsoc.git@main # for interfacing with the SWxSOC API
