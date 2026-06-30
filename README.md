@@ -11,7 +11,7 @@ This repository is to define the image to be used for the development environmen
 
 This container is built and pushed to the public repo ECR automatically by AWS Codebuild.
 
-### **Base Image**: Ubuntu 22.04 ([public.ecr.aws/lts/ubuntu:22.04_stable](https://gallery.ecr.aws/lts/ubuntu))
+### **Base Image**: Ubuntu 24.04 ([public.ecr.aws/lts/ubuntu:24.04_stable](https://gallery.ecr.aws/lts/ubuntu))
 
 ### **ECR Repo:** Docker Lambda Base Image ([public.ecr.aws/w5r9l1c8/swsoc-docker-lambda-base:latest](https://gallery.ecr.aws/w5r9l1c8/swsoc-docker-lambda-base))
 
@@ -19,7 +19,7 @@ This container is built and pushed to the public repo ECR automatically by AWS C
 - git
 - wget
 - unzip
-- python3.10
+- python3.12
 - python3-pip
 - pylint
 
@@ -37,7 +37,7 @@ To make a change to this container image, please `fork` this repo, make the requ
 If you experience any issues in your development environment (`.devcontainer` environment on VSCode) when pulling this image from ECR, ensure you have the latest build by rebuilding your container to pull from latest.
 
 ## Dockerfile Details
-This Docker image is built from the official Canonical Ubuntu 22.04 image. It updates the system and installs necessary packages such as git, unzip, python3.10, python3-pip, and pylint. 
+This Docker image is built from the official Canonical Ubuntu 24.04 image. It updates the system and installs necessary packages such as git, unzip, python3.12, python3-pip, and pylint. 
 
 This Dockerfile also includes a process to download pre-built CDF binaries for data format support and copies a Python requirements.txt file into the image to be used for installing Python dependencies. 
 

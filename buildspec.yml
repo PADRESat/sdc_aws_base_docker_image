@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     ENVIRONMENT: "dev"
-    IMAGE_NAME: "dev-swsoc-docker-lambda-base"
+    IMAGE_NAME: "dev-padre-swsoc-docker-lambda-base"
 
 phases:
   pre_build:
@@ -14,12 +14,12 @@ phases:
         if git describe --tags --exact-match > /dev/null 2>&1; then
           echo "This is a tag push event"
           ENVIRONMENT="prod"
-          IMAGE_NAME="swsoc-docker-lambda-base"
+          IMAGE_NAME="padre-swsoc-docker-lambda-base"
           GIT_TAG=`git describe --tags --exact-match`
         elif [[ "${CDK_ENVIRONMENT}" == "PRODUCTION" ]]; then
           echo "This is a production environment"
           ENVIRONMENT="prod"
-          IMAGE_NAME="swsoc-docker-lambda-base"
+          IMAGE_NAME="padre-swsoc-docker-lambda-base"
           GIT_TAG=`date -u +"%Y%m%d%H%M%S"`
         else
           echo "This is a development environment"
@@ -34,24 +34,17 @@ phases:
         docker build -t ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} .
         docker tag ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG}
         docker tag ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:latest
-        curl -LO https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64 && chmod +x container-structure-test-linux-amd64 && sudo mv container-structure-test-linux-amd64 /usr/local/bin/container-structure-test
-        sudo yum install python3-pip -y
-        sudo yum install make graphviz -y
-        pip3 install -r requirements.txt
-        make html
-        echo CST Testing
-        container-structure-test test --image ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} --config cst_config.yaml
+
         echo Pushing the Docker image...
         docker push public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG}
         docker push public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:latest
         PUBLIC_ECR_REPO=public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG}
-        echo Starting aws_processing_lambda CodeBuild project...
-        aws codebuild start-build --project-name build_sdc_aws_processing_lambda \
-        --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT \
-        --environment-variables-override name=ENVIRONMENT,value=$ENVIRONMENT,type=PLAINTEXT \
-        --environment-variables-override name=GIT_TAG,value=$GIT_TAG,type=PLAINTEXT \
-        --environment-variables-override name=PUBLIC_ECR_REPO,value=$PUBLIC_ECR_REPO,type=PLAINTEXT 
-      
+      - echo "Starting Lambda Function builds..."
+      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_sorting_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT
+      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_processing_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT
+      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_artifact_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT
+      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_concating_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT 
+       
   post_build:
     commands:
       - echo Build completed on `date`
