@@ -2,33 +2,35 @@
 Python script to check python packages specified in requirements are successfully installed
 """
 
-import pathlib
+import importlib.metadata as md
 import importlib.util
-import pkg_resources
+from pathlib import Path
 
-# Open requirements file
-with pathlib.Path("/requirements.txt").open() as requirements_txt:
-    INSTALLED_FLAG = True
-    EXCEPTION_LIST = ["ipython"]
-    PACKAGES = pkg_resources.parse_requirements(requirements_txt)
+VERSION_SPECIFIERS = ("==", ">=", "<=", "~=", "!=", ">", "<")
 
-    # Iterate through packages on list and check if installed (unless on exception list)
-    for package in PACKAGES:
-        # Parse package name
-        if "==" in str(package):
-            package_name = str(package).split("==")[0].split("@")[0].replace("-", "_")
-        else:
-            package_name = str(package).split(">=")[0].split("@")[0].replace("-", "_")
+installed_ok = True
+requirements_path = Path("/requirements.txt")
+for raw_line in requirements_path.read_text().splitlines():
+    # Strip comments and whitespace
+    line = raw_line.split("#", 1)[0].strip()
+    if not line:
+        continue
 
-        if package_name not in EXCEPTION_LIST:
-            spec = importlib.util.find_spec(package_name)
-            if spec is None:
-                print(package_name + " is not installed")
-                INSTALLED_FLAG = False
+    # Strip URL/extras/version specifiers to get the bare distribution name
+    name = line.split("@", 1)[0]
+    for sep in VERSION_SPECIFIERS:
+        name = name.split(sep, 1)[0]
+    name = name.split("[", 1)[0].strip()
 
-    STATUS = (
-        "SUCCESS: All Packages Installed"
-        if INSTALLED_FLAG
-        else "FAILED: Missing Package(s)"
-    )
-    print(STATUS)
+    # Prefer distribution metadata; fall back to import check for packages
+    # whose distribution name differs from the importable module name.
+    try:
+        md.distribution(name)
+    except md.PackageNotFoundError:
+        if importlib.util.find_spec(name.replace("-", "_")) is None:
+            print(name + " is not installed")
+            installed_ok = False
+
+print(
+    "SUCCESS: All Packages Installed" if installed_ok else "FAILED: Missing Package(s)"
+)
