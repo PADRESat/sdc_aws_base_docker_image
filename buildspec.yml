@@ -1,51 +1,177 @@
 version: 0.2
 
 env:
-  variables:
-    ENVIRONMENT: "dev"
-    IMAGE_NAME: "dev-padre-swsoc-docker-lambda-base"
+  shell: bash
 
+# Publish a versioned PADRE base image, then fan out exact-main Lambda builds.
 phases:
-  pre_build:
-    commands:
-      - |
-        echo Logging in to Amazon ECR...
-        aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/w5r9l1c8
-        if git describe --tags --exact-match > /dev/null 2>&1; then
-          echo "This is a tag push event"
-          ENVIRONMENT="prod"
-          IMAGE_NAME="padre-swsoc-docker-lambda-base"
-          GIT_TAG=`git describe --tags --exact-match`
-        elif [[ "${CDK_ENVIRONMENT}" == "PRODUCTION" ]]; then
-          echo "This is a production environment"
-          ENVIRONMENT="prod"
-          IMAGE_NAME="padre-swsoc-docker-lambda-base"
-          GIT_TAG=`date -u +"%Y%m%d%H%M%S"`
-        else
-          echo "This is a development environment"
-          GIT_TAG=`date -u +"%Y%m%d%H%M%S"`
-        fi
-
   build:
     commands:
       - |
-        echo Build started on `date`
-        echo Building the Docker image...          
-        docker build -t ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} .
-        docker tag ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG}
-        docker tag ${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG} public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:latest
+        BANNER_SOURCE=${CODEBUILD_WEBHOOK_TRIGGER:-${CODEBUILD_SOURCE_VERSION:-manual}}
+        BANNER_ENVIRONMENT=${CDK_ENVIRONMENT:-${ENVIRONMENT:-}}
+        if [ -z "${BANNER_ENVIRONMENT}" ]; then
+          case "${BANNER_SOURCE}" in
+            tag/*|refs/tags/*) BANNER_ENVIRONMENT=PRODUCTION ;;
+            branch/main|main|refs/heads/main) BANNER_ENVIRONMENT=DEVELOPMENT ;;
+            pr/*|refs/pull/*|branch/*|refs/heads/*) BANNER_ENVIRONMENT=VALIDATION ;;
+            *) BANNER_ENVIRONMENT=UNRESOLVED ;;
+          esac
+        fi
+        BANNER_ENVIRONMENT=$(printf '%s' "${BANNER_ENVIRONMENT}" | tr '[:lower:]' '[:upper:]')
+        if [ "${BANNER_ENVIRONMENT}" = VALIDATION ]; then
+          BANNER_ACTION='validate source and skip publishing'
+        else
+          BANNER_ACTION='publish base and fan out Lambda builds (guarded)'
+        fi
+        BANNER_PROJECT=${CODEBUILD_BUILD_ID%%:*}
+        BANNER_COMMIT=${CODEBUILD_RESOLVED_SOURCE_VERSION:-unknown}
+        printf '\n%s\n' '================================================================================'
+        printf '  SWxSOC BUILD: PADRE BASE IMAGE\n'
+        printf '%s\n' '================================================================================'
+        printf '  Environment : %s\n' "${BANNER_ENVIRONMENT}"
+        printf '  Mission     : padre\n'
+        printf '  Service     : container-base\n'
+        printf '  Action      : %s\n' "${BANNER_ACTION}"
+        printf '  Project     : %s\n' "${BANNER_PROJECT:-local}"
+        printf '  Build       : %s\n' "${CODEBUILD_BUILD_NUMBER:-local}"
+        printf '  Trigger     : %s\n' "${BANNER_SOURCE}"
+        printf '  Source ref  : %s\n' "${CODEBUILD_SOURCE_VERSION:-unknown}"
+        printf '  Commit      : %.12s\n' "${BANNER_COMMIT}"
+        printf '%s\n\n' '================================================================================'
+      - |
+        set -euo pipefail
 
-        echo Pushing the Docker image...
-        docker push public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG}
-        docker push public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:latest
-        PUBLIC_ECR_REPO=public.ecr.aws/w5r9l1c8/${IMAGE_NAME}:${ENVIRONMENT}-${GIT_TAG}
-      - echo "Starting Lambda Function builds..."
-      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_sorting_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT
-      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_processing_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT
-      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_artifact_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT
-      - aws codebuild start-build --project-name arn:aws:codebuild:us-east-1:351967858401:project/build_padre_sdc_aws_concating_lambda --environment-variables-override name=CDK_ENVIRONMENT,value=$CDK_ENVIRONMENT,type=PLAINTEXT 
-       
+        PUBLIC_ECR_REGISTRY=public.ecr.aws
+        PUBLIC_ECR_REGION=us-east-1
+        PUBLIC_ECR_NAMESPACE=${PUBLIC_ECR_REGISTRY}/w5r9l1c8
+        REGION=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
+
+        skip_build() {
+          echo "$1; skipping image push and downstream builds"
+          exit 0
+        }
+
+        normalize_environment() {
+          VALUE=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
+          case "${VALUE}" in
+            "") printf '%s' "" ;;
+            PROD|PRODUCTION) printf '%s' PRODUCTION ;;
+            DEV|DEVELOPMENT) printf '%s' DEVELOPMENT ;;
+            *) echo "Unsupported environment '$1'" >&2; return 1 ;;
+          esac
+        }
+
+        validate_container_tag() {
+          [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || {
+            echo "Container tag '$1' must be 1-128 valid Docker tag characters" >&2
+            return 1
+          }
+        }
+
+        case "${CODEBUILD_WEBHOOK_TRIGGER:-}" in
+          pr/*) skip_build "Pull request build" ;;
+          branch/main|tag/*|"") ;;
+          branch/*) skip_build "Non-main branch build" ;;
+          *) skip_build "Unsupported webhook trigger ${CODEBUILD_WEBHOOK_TRIGGER}" ;;
+        esac
+        case "${CODEBUILD_SOURCE_VERSION:-}" in
+          pr/*) skip_build "Pull request source" ;;
+        esac
+
+        RELEASE_TAG=""
+        case "${CODEBUILD_WEBHOOK_TRIGGER:-}" in
+          tag/*) RELEASE_TAG=${CODEBUILD_WEBHOOK_TRIGGER#tag/} ;;
+        esac
+        if [ -z "${RELEASE_TAG}" ]; then
+          case "${CODEBUILD_WEBHOOK_HEAD_REF:-}" in
+            refs/tags/*) RELEASE_TAG=${CODEBUILD_WEBHOOK_HEAD_REF#refs/tags/} ;;
+          esac
+        fi
+        if [ -z "${RELEASE_TAG}" ]; then
+          case "${CODEBUILD_SOURCE_VERSION:-}" in
+            refs/tags/*) RELEASE_TAG=${CODEBUILD_SOURCE_VERSION#refs/tags/} ;;
+          esac
+        fi
+        if [ -z "${RELEASE_TAG}" ] && \
+           [ -z "${CODEBUILD_WEBHOOK_TRIGGER:-}" ] && \
+           [ -z "${CODEBUILD_WEBHOOK_HEAD_REF:-}" ] && \
+           [ -z "${CODEBUILD_SOURCE_VERSION:-}" ] && \
+           git describe --tags --exact-match > /dev/null 2>&1; then
+          RELEASE_TAG=$(git describe --tags --exact-match)
+        fi
+
+        if [ -z "${RELEASE_TAG}" ]; then
+          git fetch origin main --depth=1
+          MAIN_SHA=$(git rev-parse origin/main)
+          BUILD_SHA=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$(git rev-parse HEAD)}
+          [ "${BUILD_SHA}" = "${MAIN_SHA}" ] || skip_build "Build source is not the current main commit"
+        else
+          validate_container_tag "${RELEASE_TAG}"
+        fi
+
+        NORMALIZED_CDK_ENV=$(normalize_environment "${CDK_ENVIRONMENT:-}")
+        NORMALIZED_LEGACY_ENV=$(normalize_environment "${ENVIRONMENT:-}")
+        if [ -n "${NORMALIZED_CDK_ENV}" ] && [ -n "${NORMALIZED_LEGACY_ENV}" ] && \
+           [ "${NORMALIZED_CDK_ENV}" != "${NORMALIZED_LEGACY_ENV}" ]; then
+          echo "CDK_ENVIRONMENT and ENVIRONMENT select different deployment environments"
+          exit 1
+        fi
+        REQUESTED_ENVIRONMENT=${NORMALIZED_CDK_ENV:-${NORMALIZED_LEGACY_ENV:-DEVELOPMENT}}
+        EXPLICIT_ENVIRONMENT=${NORMALIZED_CDK_ENV:-${NORMALIZED_LEGACY_ENV:-}}
+
+        if [ -n "${RELEASE_TAG}" ]; then
+          [ -z "${EXPLICIT_ENVIRONMENT}" ] || [ "${EXPLICIT_ENVIRONMENT}" = PRODUCTION ] || {
+            echo "A release tag cannot be deployed to DEVELOPMENT"
+            exit 1
+          }
+          CDK_ENVIRONMENT=PRODUCTION
+          IMAGE_ENVIRONMENT=prod
+          IMAGE_NAME=padre-swsoc-docker-lambda-base
+          IMAGE_VERSION=${RELEASE_TAG}
+        elif [ "${REQUESTED_ENVIRONMENT}" = PRODUCTION ]; then
+          CDK_ENVIRONMENT=PRODUCTION
+          IMAGE_ENVIRONMENT=prod
+          IMAGE_NAME=padre-swsoc-docker-lambda-base
+          SOURCE_SHA=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$(git rev-parse HEAD)}
+          IMAGE_VERSION="$(printf '%.12s' "${SOURCE_SHA}")-${CODEBUILD_BUILD_NUMBER:-0}"
+        else
+          CDK_ENVIRONMENT=DEVELOPMENT
+          IMAGE_ENVIRONMENT=dev
+          IMAGE_NAME=dev-padre-swsoc-docker-lambda-base
+          SOURCE_SHA=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$(git rev-parse HEAD)}
+          IMAGE_VERSION="$(printf '%.12s' "${SOURCE_SHA}")-${CODEBUILD_BUILD_NUMBER:-0}"
+        fi
+
+        VERSIONED_TAG="${IMAGE_ENVIRONMENT}-${IMAGE_VERSION}"
+        validate_container_tag "${VERSIONED_TAG}"
+        VERSIONED_IMAGE="${PUBLIC_ECR_NAMESPACE}/${IMAGE_NAME}:${VERSIONED_TAG}"
+        LATEST_IMAGE="${PUBLIC_ECR_NAMESPACE}/${IMAGE_NAME}:latest"
+
+        aws ecr-public get-login-password --region "${PUBLIC_ECR_REGION}" \
+          | docker login --username AWS --password-stdin "${PUBLIC_ECR_REGISTRY}"
+        docker build --pull -t "${IMAGE_NAME}:${VERSIONED_TAG}" .
+        docker tag "${IMAGE_NAME}:${VERSIONED_TAG}" "${VERSIONED_IMAGE}"
+        docker tag "${IMAGE_NAME}:${VERSIONED_TAG}" "${LATEST_IMAGE}"
+        docker push "${VERSIONED_IMAGE}"
+        docker push "${LATEST_IMAGE}"
+
+        start_lambda_build() {
+          local PROJECT_NAME=$1
+          aws codebuild start-build \
+            --region "${REGION}" \
+            --project-name "${PROJECT_NAME}" \
+            --source-version main \
+            --environment-variables-override \
+              name=CDK_ENVIRONMENT,value="${CDK_ENVIRONMENT}",type=PLAINTEXT \
+              name=PUBLIC_ECR_REPO,value="${VERSIONED_IMAGE}",type=PLAINTEXT
+        }
+
+        start_lambda_build build_padre_sdc_aws_sorting_lambda
+        start_lambda_build build_padre_sdc_aws_processing_lambda
+        start_lambda_build build_padre_sdc_aws_artifact_lambda
+        start_lambda_build build_padre_sdc_aws_concating_lambda
+
   post_build:
     commands:
-      - echo Build completed on `date`
- 
+      - echo "CodeBuild completed; see the build log for the publish/fan-out outcome"
